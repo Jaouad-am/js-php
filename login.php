@@ -41,7 +41,7 @@ if (isset($_POST['pass']) && isset($_POST['email'])) {
 </head>
 <body>
 <div class="container">
-    <p><a href='login.php'>Please log in</a></p>;
+    <p><a href='login.php'>Please log in</a></p>
     <?php
     if (isset($_SESSION['error'])) {
         echo('<p style="color: red;">' . htmlentities($_SESSION['error']) . "</p>\n");

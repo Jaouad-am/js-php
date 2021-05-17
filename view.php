@@ -14,6 +14,11 @@ if (isset($_GET['profile_id'])) {
 		return;
 	}
 
+	// Get data about Position
+	$data_pos = $pdo->prepare('SELECT * FROM Position WHERE profile_id = :pid');
+	$data_pos->execute(array('pid' => $_REQUEST['profile_id']));
+	$row_pos = $data_pos->fetch(PDO::FETCH_ASSOC);
+
 } else {
 	$_SESSION['error'] = "Missing profile_id";
 	header("Location: index.php");
@@ -38,6 +43,20 @@ if (isset($_GET['profile_id'])) {
 	<p>Email: <?= htmlentities($row['email']) ?></p>
 	<p>Headline:<br/> <?= htmlentities($row['headline']) ?></p>
 	<p>Summary:<br/> <?= htmlentities($row['summary']) ?></p>
+
+	<?php
+	
+	if ($row_pos !== false) {
+		echo "<p>Positions</p>\n";
+		echo "<ul>";
+		while ($row_pos !== false) {
+			echo '<li>'.htmlentities($row_pos['year']).': '.htmlentities($row_pos['description']).'</li>';
+			$row_pos = $data_pos->fetch(PDO::FETCH_ASSOC);
+		}
+		echo "</ul>";
+	}
+
+	?>
 
 	<a href="index.php">Done</a>
 </div>
