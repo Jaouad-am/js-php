@@ -42,6 +42,36 @@ if (isset($_POST['first_name']) && isset($_POST['last_name']) && isset($_POST['e
 		}
 	}
 
+	$institution_id = array();
+	for ($k=1; $k <= 9 ; $k++)	{
+		if (isset($_POST['edu_year'.$k]) && isset($_POST['edu_school'.$k])) {
+			if (strlen($_POST['edu_year'.$k]) < 1 || strlen($_POST['edu_school'.$k]) < 1) {
+				$_SESSION['error_add'] = 'All fields are required';
+				header('Location: add.php');
+				return;
+			}
+			// Check if edu_year is numeric
+			if (! is_numeric($_POST['edu_year'.$k.''])) {
+				$_SESSION['error_add'] = "Year must be numeric";
+				header("Location: add.php");
+				return;
+			}
+
+			// Check if exist the university typed in the database, if not exist we create a new university with the data of user
+			$stmt = $pdo->prepare('SELECT * FROM Institution WHERE name = :name');
+			$stmt->execute(array(':name' => $_POST['edu_school'.$k]));
+			$row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+			if ($row !== false) {
+				$institution_id[$k] = $row['institution_id'];
+			} else {
+				$stmt = $pdo->prepare('INSERT INTO Institution (name) VALUES (:name)');
+				$stmt->execute(array(':name' => $_POST['edu_school'.$k]));
+
+				$institution_id[$k] = $pdo->lastInsertId();
+			}
+		}
+	}
 
 	// Clear out the old position entries
 	$stmt_clear = $pdo->prepare('DELETE FROM Position WHERE profile_id = :pid');
@@ -72,6 +102,18 @@ if (isset($_POST['first_name']) && isset($_POST['last_name']) && isset($_POST['e
     	}
     }
 
+    $rank = 1;
+    for ($i=1; $i <= 9; $i++) {
+    	if (isset($_POST['edu_year'.$i]) && isset($_POST['edu_school'.$i])) {
+    		$stmt = $pdo->prepare('INSERT INTO Education (profile_id, institution_id, rank, year) VALUES (:pid, :inst, :rk, :yr)');
+    		$stmt->execute(array(
+    			':pid' => $_POST['profile_id'],
+    			':inst' => $institution_id[$i],
+    			':rk' => $rank,
+    			':yr' => $_POST['edu_year'.$i]));
+    	}
+    	$rank++;
+    }
    
     $_SESSION['success'] = "Profile updated";
 	header("Location: index.php");
@@ -91,14 +133,25 @@ $data_pos =	$pdo->prepare('SELECT * FROM Position WHERE profile_id = :pid');
 $data_pos->execute(array('pid' => $_REQUEST['profile_id']));
 $row_pos = $data_pos->fetch(PDO::FETCH_ASSOC);
 
+// Get data about Education
+$data_edu = $pdo->prepare('SELECT Education.year, Institution.name FROM Education JOIN Institution WHERE profile_id = :pid AND Education.institution_id = Institution.institution_id');
+$data_edu->execute(array('pid' => $_REQUEST['profile_id']));
+$row_edu = $data_edu->fetch(PDO::FETCH_ASSOC);
+
 ?>
 <!DOCTYPE html>
 <html>
 <head>
 	<title>Jaouad Amamou Edit Page</title>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/ui-lightness/jquery-ui.css"> 
+
   <script src="https://code.jquery.com/jquery-3.2.1.js" integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE=" crossorigin="anonymous"></script>
+
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js" integrity="sha256-T0Vest3yCU7pafRw9r+settMBX6JkKN06dqBnpQ8d30=" crossorigin="anonymous"></script>
 
 	
 </head>
@@ -123,6 +176,23 @@ $row_pos = $data_pos->fetch(PDO::FETCH_ASSOC);
 		<input type="text" name="headline" size="80" value="<?= htmlentities($row['headline']) ?>"/></p>
 		<p>Summary:<br/>
 		<textarea name="summary" rows="8" cols="80"><?= htmlentities($row['summary']) ?></textarea>
+		<p>
+			Education: <input type="submit" id="addEdu" value="+">
+		</p>
+		<div id="edu_fields">
+		<?php
+		$cont_edu = 1;
+		while ($row_edu !== false) {
+			echo '<div id="edu'.$cont_edu.'">
+		            <p>Year: <input type="text" name="edu_year'.$cont_edu.'" value="'.htmlentities($row_edu['year']).'" />
+		            <input type="button" value="-" onclick="$(\'#edu'.$cont_edu.'\').remove();return false;"><br>
+		            <p>School: <input type="text" size="80" name="edu_school'.$cont_edu.'" class="school" value="'.htmlentities($row_edu['name']).'" />
+		            </p></div>';
+			$row_edu = $data_edu->fetch(PDO::FETCH_ASSOC);
+			$cont_edu++;
+		}
+		?>
+		</div>
 		<p>
 			Position: <input type="submit" id="addPos" value="+">
 		</p>
@@ -153,13 +223,16 @@ $row_pos = $data_pos->fetch(PDO::FETCH_ASSOC);
 	</div>
 	<script>
 		var countPos = <?php echo $cont_positions - 1; ?>;
+		var countEdu = <?php echo $cont_edu - 1; ?>;
 
+		// http://stackoverflow.com/questions/17650776/add-remove-html-inside-div-using-javascript
 		$(document).ready(function(){
 		    window.console && console.log('Document ready called');
 		    $('#addPos').click(function(event){
+		        // http://api.jquery.com/event.preventdefault/
 		        event.preventDefault();
 		        if ( countPos >= 9 ) {
-		            alert("Maximum of 9 position entries exceeded");
+		            alert("Maximum of nine position entries exceeded");
 		            return;
 		        }
 		        countPos++;
@@ -173,6 +246,28 @@ $row_pos = $data_pos->fetch(PDO::FETCH_ASSOC);
 		            </div>');
 		    });
 
+		    $('#addEdu').click(function(event){
+	        event.preventDefault();
+		        if ( countEdu >= 9 ) {
+		            alert("Maximum of nine education entries exceeded");
+		            return;
+		        }
+		        countEdu++;
+		        window.console && console.log("Adding education "+countEdu);
+
+		        $('#edu_fields').append(
+		            '<div id="edu'+countEdu+'"> \
+		            <p>Year: <input type="text" name="edu_year'+countEdu+'" value="" /> \
+		            <input type="button" value="-" onclick="$(\'#edu'+countEdu+'\').remove();return false;"><br>\
+		            <p>School: <input type="text" size="80" name="edu_school'+countEdu+'" class="school" value="" />\
+		            </p></div>'
+		        );
+
+		        $('.school').autocomplete({
+		            source: "school.php"
+		        });
+
+		    });
 		});
 		</script>
 </body>

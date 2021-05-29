@@ -14,6 +14,11 @@ if (isset($_GET['profile_id'])) {
 		return;
 	}
 
+	// Get data about Education
+	$data_edu = $pdo->prepare('SELECT Education.year, Institution.name FROM Education JOIN Institution WHERE profile_id = :pid AND Education.institution_id = Institution.institution_id');
+	$data_edu->execute(array('pid' => $_REQUEST['profile_id']));
+	$row_edu = $data_edu->fetch(PDO::FETCH_ASSOC);
+
 	// Get data about Position
 	$data_pos = $pdo->prepare('SELECT * FROM Position WHERE profile_id = :pid');
 	$data_pos->execute(array('pid' => $_REQUEST['profile_id']));
@@ -31,8 +36,14 @@ if (isset($_GET['profile_id'])) {
 	<title>Jaouad Amamou DB</title>
 
 	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/ui-lightness/jquery-ui.css"> 
+
   <script src="https://code.jquery.com/jquery-3.2.1.js" integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE=" crossorigin="anonymous"></script>
+
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js" integrity="sha256-T0Vest3yCU7pafRw9r+settMBX6JkKN06dqBnpQ8d30=" crossorigin="anonymous"></script>
   
 </head>
 <body>
@@ -45,7 +56,15 @@ if (isset($_GET['profile_id'])) {
 	<p>Summary:<br/> <?= htmlentities($row['summary']) ?></p>
 
 	<?php
-	
+	if ($row_edu !== false) {
+		echo "<p>Education</p>\n";
+		echo "<ul>";
+		while ($row_edu !== false) {
+			echo '<li>'.htmlentities($row_edu['year']).': '.htmlentities($row_edu['name']).'</li>';
+			$row_edu = $data_edu->fetch(PDO::FETCH_ASSOC);
+		}
+		echo "</ul>";
+	}
 	if ($row_pos !== false) {
 		echo "<p>Positions</p>\n";
 		echo "<ul>";
